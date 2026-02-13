@@ -1,0 +1,166 @@
+# FamilyPulse Project Handover
+
+**Project**: FamilyPulse - Family Task Tracker PWA
+**Current Version**: 1.3
+**Stack**: Vanilla HTML/CSS/JS (No framework/build tools)
+**Data**: Currently `localStorage`, migrating to **Google Sheets Backend**
+
+---
+
+## 🚀 Project Overview
+FamilyPulse is a mobile-first Progressive Web App (PWA) designed for iPhones. It tracks daily recurring tasks for family members and visualized progress on a smoothed line chart.
+
+### Key Features Implemented
+1.  **Visualizations**: Custom Chart.js implementation.
+    *   **Photo Data Labels**: Replaced numeric labels with member photos on data points.
+    *   **Smart Overlap**: Stacks photos vertically if values overlap.
+    *   **End-of-line Avatars**: Shows member photo at the end of their trend line.
+2.  **Quick Add**: "Liquid Glass" tab interface in the Tasks view.
+    *   Example: Select "Dishes (Daily)" → Choose Date Range → Select Members → Batch create 14 entries instantly.
+3.  **UI/UX**:
+    *   Glassmorphism effects.
+    *   Smooth animations (fade-ins, slide-ups).
+    *   PWA Manifest (installable on iOS).
+4.  **Data**: Full `localStorage` CRUD for Tasks and Members.
+
+---
+
+## 📂 File Structure
+*   [index.html](file:///c:/Users/dwhit/OneDrive/_1Web/personal_tracker/index.html): Single-page app structure with views (Chart, Tasks, Stats, Settings).
+*   [style.css](file:///c:/Users/dwhit/OneDrive/_1Web/personal_tracker/style.css): Comprehensive design system (Variables, Dark/Light blues, Inter font, Glassmorphism).
+*   [app.js](file:///c:/Users/dwhit/OneDrive/_1Web/personal_tracker/app.js): Core logic.
+    *   `StorageManager`: Handles data I/O.
+    *   `ChartManager`: Chart.js config + custom plugins (`photoDataLabels`).
+    *   `TaskUI`: Task list rendering & Quick Add logic.
+    *   `SetupUI`: Member onboarding.
+*   [manifest.json](file:///c:/Users/dwhit/OneDrive/_1Web/personal_tracker/manifest.json): PWA configuration.
+
+---
+
+## 🚧 Current Initialization Status
+The app is fully functional with `localStorage`. The immediate next step is adding **Google Sheets** as a free cloud backend to enable multi-device sync and data persistence.
+
+**Google Sheet URL**: [https://docs.google.com/spreadsheets/d/17C15Z4bE_Ixwej8NGI9HKI1eKUpXVVd5CdNoJexhaZQ/edit?gid=0#gid=0](https://docs.google.com/spreadsheets/d/17C15Z4bE_Ixwej8NGI9HKI1eKUpXVVd5CdNoJexhaZQ/edit?gid=0#gid=0)
+
+---
+
+## 📋 Next Steps for the Next AI Agent
+
+### 1. Create Google Apps Script
+The user needs to paste the following code into the Google Sheet's Apps Script editor (Extensions > Apps Script) and deploy it as a Web App (Anyone can access).
+
+**Code to provide to User:**
+
+```javascript
+// Google Apps Script for FamilyPulse Backend
+
+function doGet(e) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const membersSheet = ss.getSheetByName('Members') || ss.insertSheet('Members');
+  const tasksSheet = ss.getSheetByName('Tasks') || ss.insertSheet('Tasks');
+  
+  const members = getData(membersSheet);
+  const tasks = getData(tasksSheet);
+  
+  return ContentService.createTextOutput(JSON.stringify({ members, tasks }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(e) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const lock = LockService.getScriptLock();
+  
+  try {
+    lock.waitLock(10000); // Wait for other processes
+    
+    const data = JSON.parse(e.postData.contents);
+    
+    // Sync Members
+    if (data.members) {
+      updateSheet(ss, 'Members', data.members);
+    }
+    
+    // Sync Tasks
+    if (data.tasks) {
+      updateSheet(ss, 'Tasks', data.tasks);
+    }
+    
+    return ContentService.createTextOutput(JSON.stringify({ status: 'success' }))
+      .setMimeType(ContentService.MimeType.JSON);
+      
+  } catch (error) {
+    return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: error.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Helper to read sheet data as array of objects
+function getData(sheet) {
+  const rows = sheet.getDataRange().getValues();
+  if (rows.length < 2) return [];
+  
+  const headers = rows[0];
+  const data = [];
+  
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    const obj = {};
+    for (let j = 0; j < headers.length; j++) {
+      obj[headers[j]] = row[j];
+    }
+    data.push(obj);
+  }
+  return data;
+}
+
+// Helper to overwrite sheet data
+function updateSheet(ss, sheetName, data) {
+  let sheet = ss.getSheetByName(sheetName);
+  if (!sheet) sheet = ss.insertSheet(sheetName);
+  
+  sheet.clear();
+  
+  if (data.length === 0) return;
+  
+  const headers = Object.keys(data[0]);
+  const rows = [headers];
+  
+  data.forEach(item => {
+    const row = [];
+    headers.forEach(header => {
+      row.push(item[header] || '');
+    });
+    rows.push(row);
+  });
+  
+  sheet.getRange(1, 1, rows.length, headers.length).setValues(rows);
+}
+```
+
+### 2. Implement `SheetBackend` in [app.js](file:///c:/Users/dwhit/OneDrive/_1Web/personal_tracker/app.js)
+Modify [app.js](file:///c:/Users/dwhit/OneDrive/_1Web/personal_tracker/app.js) to include a new `SheetBackend` object.
+*   **Properties**: `scriptUrl` (User needs to input this in Settings).
+*   **Methods**:
+    *   `sync()`: Fetch data from Sheet `doGet()`, merge with localStorage, then `doPost()` back latest data.
+    *   Strategy: "Last Write Wins" or simple "Merge Unique IDs".
+
+### 3. Update `StorageManager`
+*   Currently uses `localStorage`.
+*   Update [saveTask](file:///c:/Users/dwhit/OneDrive/_1Web/personal_tracker/app.js#448-469), [saveMember](file:///c:/Users/dwhit/OneDrive/_1Web/personal_tracker/app.js#969-991), [deleteTask](file:///c:/Users/dwhit/OneDrive/_1Web/personal_tracker/app.js#470-478), etc., to call `SheetBackend.sync()` (debounced) after local updates.
+*   **Offline Support**: Keep `localStorage` as the primary read source for speed. Sync in background.
+
+### 4. Update UI
+*   Add **"Google Sheet URL"** input field in the **Settings** tab.
+*   Add a **Sync Status** indicator (e.g., "Last synced: 10:42 AM" or spinning icon).
+
+### 5. Deployment
+*   Create `.nojekyll` file.
+*   Push to GitHub and enable GitHub Pages.
+
+---
+
+## 📝 Critical Implementation Notes
+*   **Photo Storage**: Google Sheets cells have limits (50k chars). The frontend MUST resize photos to small thumbnails (base64) before sending to Sheets. High-res photos should stay in localStorage or be skipped for sync if too large.
+*   **CORS**: The Apps Script must be deployed as "Anyone", or fetch requests will fail with CORS errors.

@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="FamilyPulse">
+    <meta name="theme-color" content="#2563EB">
+    <title>FamilyPulse — Family Task Tracker</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script
+        src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+</head>
+
+<body>
+    <!-- Setup Screen (First Run) -->
+    <div id="setupScreen" class="screen">
+        <div class="setup-container">
+            <div class="setup-header">
+                <h1>Welcome to FamilyPulse</h1>
+                <p>Let's set up your family members</p>
+            </div>
+
+            <div id="memberSetupList" class="member-setup-list"></div>
+
+            <button id="addMemberBtn" class="btn-secondary">
+                <span class="icon">+</span> Add Family Member
+            </button>
+
+            <button id="finishSetupBtn" class="btn-primary" style="margin-top: 24px;">
+                Get Started
+            </button>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="mainApp" class="screen" style="display: none;">
+        <!-- Chart View -->
+        <div id="chartView" class="view active">
+            <div class="view-header">
+                <h2>Task Progress</h2>
+                <div class="toggle-group">
+                    <button id="toggleDaily" class="toggle-btn active">Daily</button>
+                    <button id="toggleCumulative" class="toggle-btn">Cumulative</button>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <canvas id="taskChart"></canvas>
+            </div>
+
+            <div class="quick-stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="todayTotal">0</div>
+                    <div class="stat-label">Today</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="weekAvg">0</div>
+                    <div class="stat-label">7-Day Avg</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="topContributor">—</div>
+                    <div class="stat-label">Top Today</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tasks View -->
+        <div id="tasksView" class="view">
+            <div class="view-header">
+                <h2>Tasks</h2>
+                <button id="addTaskBtn" class="btn-icon">+</button>
+            </div>
+
+            <!-- Liquid Glass Tab Toggle -->
+            <div class="liquid-tabs">
+                <div class="liquid-tabs-slider"></div>
+                <button class="liquid-tab active" data-tab="allTasks">
+                    <span class="tab-icon">📋</span>
+                    <span class="tab-label">All Tasks</span>
+                </button>
+                <button class="liquid-tab" data-tab="quickAdd">
+                    <span class="tab-icon">⚡</span>
+                    <span class="tab-label">Quick Add</span>
+                </button>
+            </div>
+
+            <!-- All Tasks Sub-page -->
+            <div id="allTasksTab" class="tab-content active">
+                <div id="tasksList" class="tasks-list"></div>
+            </div>
+
+            <!-- Quick Add Sub-page -->
+            <div id="quickAddTab" class="tab-content">
+                <div class="quick-add-container">
+                    <div class="quick-add-header">
+                        <h3>Quick Add Recurring Tasks</h3>
+                        <p>Batch create tasks for multiple family members</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Select Recurring Task</label>
+                        <select id="quickAddTaskSelect" class="form-control">
+                            <option value="">-- Choose a recurring task --</option>
+                        </select>
+                    </div>
+
+                    <div id="quickAddForm" style="display: none;">
+                        <div class="date-range-group">
+                            <div class="form-group">
+                                <label>From Date</label>
+                                <input type="date" id="quickAddFromDate" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label>To Date</label>
+                                <input type="date" id="quickAddToDate" class="form-control">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Add for Family Members</label>
+                            <div id="quickAddMembersList" class="member-checkboxes"></div>
+                        </div>
+
+                        <div class="quick-add-preview">
+                            <div class="preview-label">Preview</div>
+                            <div id="quickAddPreview" class="preview-content">
+                                Select options above to see preview
+                            </div>
+                        </div>
+
+                        <button id="executeQuickAdd" class="btn-primary">
+                            <span class="icon">⚡</span> Create Tasks
+                        </button>
+                    </div>
+
+                    <div id="quickAddEmpty" class="empty-state">
+                        <div class="empty-state-icon">📝</div>
+                        <div class="empty-state-text">No recurring tasks yet. Create a daily, weekly, or monthly task
+                            first!</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats View -->
+        <div id="statsView" class="view">
+            <div class="view-header">
+                <h2>Statistics</h2>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card-large">
+                    <div class="stat-label">Total Tasks (All Time)</div>
+                    <div class="stat-value-large" id="totalAllTime">0</div>
+                </div>
+                <div class="stat-card-large">
+                    <div class="stat-label">Longest Streak</div>
+                    <div class="stat-value-large" id="longestStreak">0 days</div>
+                </div>
+            </div>
+
+            <h3 style="margin: 32px 0 16px; color: var(--text-primary); font-size: 18px; font-weight: 600;">Breakdown by
+                Person</h3>
+            <div id="breakdownList" class="breakdown-list"></div>
+        </div>
+
+        <!-- Settings View -->
+        <div id="settingsView" class="view">
+            <div class="view-header">
+                <h2>Settings</h2>
+            </div>
+
+            <div class="settings-section">
+                <h3>Family Members</h3>
+                <div id="settingsMembersList" class="settings-members-list"></div>
+                <button id="addMemberSettingsBtn" class="btn-secondary">
+                    <span class="icon">+</span> Add Family Member
+                </button>
+            </div>
+
+            <div class="settings-section">
+                <h3>Data Management</h3>
+                <button id="exportDataBtn" class="btn-secondary">Export Data</button>
+                <button id="importDataBtn" class="btn-secondary">Import Data</button>
+                <input type="file" id="importFileInput" accept=".json" style="display: none;">
+            </div>
+
+            <div class="settings-section">
+                <h3>Google Sheets Sync</h3>
+                <div class="form-group">
+                    <label for="sheetScriptUrl">Google Apps Script URL</label>
+                    <input type="url" id="sheetScriptUrl" class="form-control"
+                        placeholder="https://script.google.com/macros/s/.../exec">
+                </div>
+                <div class="sync-actions">
+                    <button id="saveSheetUrlBtn" class="btn-primary">Save & Test Connection</button>
+                    <button id="manualSyncBtn" class="btn-secondary">Sync Now</button>
+                </div>
+                <div id="syncStatus" class="sync-status">
+                    <span id="syncIndicator" class="sync-indicator unconfigured" aria-hidden="true"></span>
+                    <div class="sync-status-text">
+                        <div id="syncMessage">Add your Google Apps Script URL to enable sync</div>
+                        <div id="syncLastSynced" class="sync-last-synced">Last synced: Never</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <button class="nav-btn active" data-view="chartView">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                </svg>
+                <span>Chart</span>
+            </button>
+            <button class="nav-btn" data-view="tasksView">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 11l3 3L22 4"></path>
+                    <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"></path>
+                </svg>
+                <span>Tasks</span>
+            </button>
+            <button class="nav-btn" data-view="statsView">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="14" width="7" height="7"></rect>
+                    <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+                <span>Stats</span>
+            </button>
+            <button class="nav-btn" data-view="settingsView">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path
+                        d="M12 1v6m0 6v6m8.66-15.66l-4.24 4.24m-4.24 4.24l-4.24 4.24M23 12h-6m-6 0H1m20.66 8.66l-4.24-4.24m-4.24-4.24l-4.24-4.24">
+                    </path>
+                </svg>
+                <span>Settings</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- Add/Edit Task Modal -->
+    <div id="taskModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="taskModalTitle">Add Task</h3>
+                <button class="modal-close" id="closeTaskModal">&times;</button>
+            </div>
+
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Family Member</label>
+                    <select id="taskMemberId" class="form-control"></select>
+                </div>
+
+                <div class="form-group">
+                    <label>Task Name</label>
+                    <input type="text" id="taskName" class="form-control" placeholder="e.g., Dishes, Laundry">
+                </div>
+
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="taskDate" class="form-control">
+                </div>
+
+                <div class="form-group">
+                    <label>Time (Optional)</label>
+                    <input type="time" id="taskTime" class="form-control">
+                </div>
+
+                <div class="form-group">
+                    <label>Recurrence</label>
+                    <select id="taskRecurrence" class="form-control">
+                        <option value="none">One-time</option>
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button id="cancelTaskBtn" class="btn-secondary">Cancel</button>
+                <button id="saveTaskBtn" class="btn-primary">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Member Modal -->
+    <div id="memberModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="memberModalTitle">Add Family Member</h3>
+                <button class="modal-close" id="closeMemberModal">&times;</button>
+            </div>
+
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" id="memberName" class="form-control" placeholder="e.g., Sarah">
+                </div>
+
+                <div class="form-group">
+                    <label>Photo</label>
+                    <div class="photo-upload">
+                        <div id="photoPreview" class="photo-preview"></div>
+                        <input type="file" id="memberPhoto" accept="image/*" style="display: none;">
+                        <button id="uploadPhotoBtn" class="btn-secondary">Choose Photo</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button id="cancelMemberBtn" class="btn-secondary">Cancel</button>
+                <button id="saveMemberBtn" class="btn-primary">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Action Button (for adding tasks) -->
+    <button id="fabAddTask" class="fab">+</button>
+
+    <script src="app.js"></script>
+</body>
+
+</html>
